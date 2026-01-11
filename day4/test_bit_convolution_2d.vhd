@@ -51,7 +51,7 @@ architecture testbench of test_bit_convolution_2d is
 begin
     dut : entity work.bit_convolution_2d
     generic map (
-        BUS_WIDTH => BUS_WIDTH
+        BUS_IN_WIDTH => BUS_WIDTH
     )
     port map (
         Clk_in     => clk,
