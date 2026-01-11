@@ -2,7 +2,7 @@
 -- Uses AoC example input .......
 --
 -- To run this testbench, with a terminal in day4 directory, run:
---   ghdl -a bit_convolution_2d.vhd test_bit_convolution_2d.vhd
+--   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd test_bit_convolution_2d.vhd
 --   ghdl -e test_bit_convolution_2d 
 --   ghdl -r test_bit_convolution_2d --wave=wave.ghw   
 --
@@ -11,6 +11,8 @@ use ieee.std_logic_1164.all;
 
 library std;
 use std.textio.all;
+
+use work.aoc25_day4_pkg.all;
 
 entity test_bit_convolution_2d is
 end entity;
@@ -44,15 +46,6 @@ architecture testbench of test_bit_convolution_2d is
     -- for part 1 solution, count up bits while running
     signal acc : natural := 0;
     signal reset_acc : std_logic := '0';
-    
-    function count_bits(VEC_IN : std_logic_vector) return natural is
-        variable count : natural := 0;
-    begin
-        for i in VEC_IN'range loop
-            if VEC_IN(i) = '1' then count := count + 1; end if;
-        end loop;
-        return count;
-    end function;
 begin
     dut : entity work.bit_convolution_2d
     generic map (

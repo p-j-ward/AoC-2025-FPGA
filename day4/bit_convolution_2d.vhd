@@ -5,6 +5,8 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+use work.aoc25_day4_pkg.all;
+
 entity bit_convolution_2d is
     generic (
         BUS_IN_WIDTH : natural
@@ -34,24 +36,8 @@ architecture rtl of bit_convolution_2d is
     signal conv_kernel_inputs : conv_window_arr_t(BUS_IN_WIDTH-1 downto 0);
     signal conv_kernel_outputs : std_logic_vector(BUS_IN_WIDTH-3 downto 0) := (others => '0');
 
-    -- helper function and our specific kernel
-    function less_than_n_bits_set(VEC : std_logic_vector; N : natural) return std_logic is
-        variable count : natural := 0;
-        variable ret_bit : std_logic;
-    begin
-        -- sum number of bits set in VEC
-        for i in VEC'range loop
-            if VEC(i) = '1' then
-                count := count + 1;
-            end if;
-        end loop;
-
-        if count < N then ret_bit := '1'; else ret_bit := '0';
-        end if;
-        return ret_bit;
-    end function;
-
-    -- rule is: middle bit must be set, and 4 or fewer of the surrouding bits set, for output high
+    -- convolution kernel for our problem - rule is: middle bit must be set,
+    -- and 4 or fewer of the surrouding bits set, for output high
     function conv_kernel(WINDOW_IN : conv_window_t) return std_logic is
         variable neighbours_vec : std_logic_vector(7 downto 0);
         variable ret_bit : std_logic;
