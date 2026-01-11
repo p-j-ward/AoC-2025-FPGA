@@ -229,7 +229,7 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
-        -- add single cycle of input
+        -- add last cycle of input
         for i in 9 to 9 loop
             clk <= '1';
             wait for 0 ns;
@@ -240,7 +240,19 @@ begin
             wait for T_WAIT;
         end loop;
 
-        -- stall a cycle
+        -- stall 3 cycles
+        clk <= '1';
+        wait for 0 ns;
+        bus_dv_in <= '0';
+        wait for T_WAIT;
+        clk <= '0';
+        wait for T_WAIT;
+        clk <= '1';
+        wait for 0 ns;
+        bus_dv_in <= '0';
+        wait for T_WAIT;
+        clk <= '0';
+        wait for T_WAIT;
         clk <= '1';
         wait for 0 ns;
         bus_dv_in <= '0';
@@ -248,10 +260,19 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
+        -- final cycle of padding
+        clk <= '1';
+        wait for 0 ns;
+        bus_dv_in <= '1';
+        bus_in <= (others => '0');
+        wait for T_WAIT;
+        clk <= '0';
+        wait for T_WAIT;
+
         -- done
         clk <= '1';
         wait for 0 ns;
-        srst_n <= '0';
+        srst_n <= '0'; bus_dv_in <= '0';
         wait for T_WAIT;
         clk <= '0';
         wait for T_WAIT;

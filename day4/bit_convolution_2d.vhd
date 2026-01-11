@@ -25,7 +25,8 @@ end entity;
 architecture rtl of bit_convolution_2d is
     -- pipeline registers for 3 rows of input
     signal bus_reg, bus_reg_d, bus_reg_dd : std_logic_vector(BUS_IN_WIDTH-1 downto 0) := (others => '0');
-    signal bus_dv_out_pipe : std_logic_vector(2 downto 0) := (others => '0');
+    signal reg_dv_pipe   : std_logic_vector(2 downto 0) := (others => '0');
+    signal output_dv_int : std_logic := '0';
 
     -- a view of the pipeline an row of overlapping 3x3 squares, the inputs to the kernel function
     type conv_window_t is array (0 to 2) of std_logic_vector(2 downto 0);
@@ -63,25 +64,31 @@ begin
     pipeline_reg_proc : process (Clk_in)
     begin
         if rising_edge(Clk_in) then
-            bus_dv_out_pipe(2 downto 1) <= bus_dv_out_pipe(1 downto 0);
+            output_dv_int <= '0';
 
             if Srst_n_in = '0' then
                 bus_reg    <= (others => '0');
                 bus_reg_d  <= (others => '0');
                 bus_reg_dd <= (others => '0');
-                bus_dv_out_pipe <= (others => '0');
+                reg_dv_pipe <= (others => '0');
             else
                 if Bus_dv_in = '1' then
                     bus_reg    <= Bus_in;
                     bus_reg_d  <= bus_reg;
                     bus_reg_dd <= bus_reg_d;
-                    bus_dv_out_pipe(0) <= '1';
-                else
-                    bus_dv_out_pipe(0) <= '0';
+                    reg_dv_pipe <= reg_dv_pipe(1 downto 0) & '1';
+
+                    -- once pipeline is full, dv in will result in dv out,
+                    -- delayed by 1 cycle, hence checking only lower two
+                    -- bits, to 'preempt' the first cycle that's full
+                    if reg_dv_pipe(1 downto 0) = b"11" then
+                        output_dv_int <= '1';
+                    end if;
                 end if;
             end if;
         end if;
     end process;
+
 
     apply_kernel_gen : for i in 0 to BUS_IN_WIDTH-3 generate
         -- pipeline viewed as inputs to the convolution kernel, this is really just renaming wires
@@ -98,5 +105,5 @@ begin
     -- could pipeline here, currently just combinatorial
     Bus_out <= conv_kernel_outputs;
     Bus_dly_out <= bus_reg_d;
-    Bus_dv_out <= bus_dv_out_pipe(2);
+    Bus_dv_out <= output_dv_int;
 end architecture;
