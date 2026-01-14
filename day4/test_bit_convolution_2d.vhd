@@ -4,7 +4,7 @@
 -- To run this testbench, with a terminal in day4 directory, run:
 --   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd test_bit_convolution_2d.vhd
 --   ghdl -e test_bit_convolution_2d 
---   ghdl -r test_bit_convolution_2d --wave=test_bit_convolution_2d_result.ghw   
+--   ghdl -r test_bit_convolution_2d --wave=test_bit_convolution_2d_result.ghw
 --
 library ieee;
 use ieee.std_logic_1164.all;
