@@ -64,16 +64,10 @@ begin
                     bus_reg_dd <= bus_reg_d;
                     reg_dv_pipe <= reg_dv_pipe(1 downto 0) & '1';
 
-                    -- NOTE: this calculation basically cuts off the first padding
-                    -- byte, but we do want to propagate that, for the pipeline...
-                    -- -- once pipeline is full, dv in will result in dv out,
-                    -- -- delayed by 1 cycle, hence checking only lower two
-                    -- -- bits, to 'preempt' the first cycle that's full
-                    -- if reg_dv_pipe(1 downto 0) = b"11" then
-                    --     output_dv_int <= '1';
-                    -- end if;
-                    -- Revised:
-                    if reg_dv_pipe(0) = '1' then
+                    -- once pipeline is full, dv in will result in dv out,
+                    -- delayed by 1 cycle, hence checking only lower two
+                    -- bits, to 'preempt' the first cycle that's full
+                    if reg_dv_pipe(1 downto 0) = b"11" then
                         output_dv_int <= '1';
                     end if;
                 end if;

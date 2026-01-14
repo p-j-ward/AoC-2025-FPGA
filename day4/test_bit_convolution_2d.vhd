@@ -101,13 +101,21 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
-        -- done
+        -- done, deassert bus_dv_in, then srst_n
         clk <= '1';
         wait for 0 ns;
-        srst_n <= '0'; bus_dv_in <= '0';
+        bus_dv_in <= '0';
         wait for T_WAIT;
         clk <= '0';
         wait for T_WAIT;
+        clk <= '1';
+        wait for 0 ns;
+        srst_n <= '0'; 
+        wait for T_WAIT;
+        clk <= '0';
+        wait for T_WAIT;
+
+        -- a few more clock cycles
         clk <= '1';
         wait for T_WAIT;
         clk <= '0';

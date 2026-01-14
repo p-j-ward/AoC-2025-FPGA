@@ -104,13 +104,13 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
-        -- bodge fix: add 9 more lines of padding
-        for i in 1 to 10 loop
-            clk <= '1';
-            wait for T_WAIT;
-            clk <= '0';
-            wait for T_WAIT;
-        end loop;
+        -- -- bodge fix: add 9 more lines of padding.... not needed anymore, with parallel dv in dut
+        -- for i in 1 to 10 loop
+        --     clk <= '1';
+        --     wait for T_WAIT;
+        --     clk <= '0';
+        --     wait for T_WAIT;
+        -- end loop;
 
         for i in input_data'range loop
             clk <= '1';
@@ -129,8 +129,8 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
-        -- bodge fix: add 9 more lines of padding
-        for i in 1 to 10 loop
+        -- bodge fix: add 9 more lines of padding... nope, combined with parallel dv, 20 total post lines is correct
+        for i in 1 to 19 loop
             clk <= '1';
             wait for T_WAIT;
             clk <= '0';
