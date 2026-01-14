@@ -9,32 +9,32 @@ use work.aoc25_day4_pkg.all;
 
 entity bit_convolution_2d is
     generic (
-        BUS_IN_WIDTH : natural
+        DATA_IN_WIDTH : natural
     );
     port (
-        Clk_in      : in  std_logic;
-        Srst_n_in   : in  std_logic;
+        Clk_in    : in  std_logic;
+        Srst_n_in : in  std_logic;
 
-        Bus_dv_in   : in  std_logic; -- if data stream in is contiguous, this can be tied to Srst_n_in
-        Bus_in      : in  std_logic_vector(BUS_IN_WIDTH-1 downto 0);
-
-        Bus_dv_out  : out std_logic;
-        Bus_out     : out std_logic_vector(BUS_IN_WIDTH-3 downto 0);
-        Bus_dly_out : out std_logic_vector(BUS_IN_WIDTH-1 downto 0) -- if needed, input data delayed to give the input line for the current output
+        Dv_in     : in  std_logic;
+        Data_in   : in  std_logic_vector(DATA_IN_WIDTH-1 downto 0);
+        
+        Dv_out    : out std_logic;
+        Data_out  : out std_logic_vector(DATA_IN_WIDTH-1 downto 0); -- if needed, input data delayed to give the input line for the current output
+        Conv_out  : out std_logic_vector(DATA_IN_WIDTH-3 downto 0)
     );
 end entity;
 
 architecture rtl of bit_convolution_2d is
     -- pipeline registers for 3 rows of input
-    signal bus_reg, bus_reg_d, bus_reg_dd : std_logic_vector(BUS_IN_WIDTH-1 downto 0) := (others => '0');
+    signal bus_reg, bus_reg_d, bus_reg_dd : std_logic_vector(DATA_IN_WIDTH-1 downto 0) := (others => '0');
     signal reg_dv_pipe   : std_logic_vector(2 downto 0) := (others => '0');
     signal output_dv_int : std_logic := '0';
 
     -- a view of the pipeline an row of overlapping 3x3 squares, the inputs to the kernel function
     type conv_window_t is array (0 to 2) of std_logic_vector(2 downto 0);
     type conv_window_arr_t is array (natural range <>) of conv_window_t;
-    signal conv_kernel_inputs : conv_window_arr_t(BUS_IN_WIDTH-1 downto 0);
-    signal conv_kernel_outputs : std_logic_vector(BUS_IN_WIDTH-3 downto 0) := (others => '0');
+    signal conv_kernel_inputs : conv_window_arr_t(DATA_IN_WIDTH-1 downto 0);
+    signal conv_kernel_outputs : std_logic_vector(DATA_IN_WIDTH-3 downto 0) := (others => '0');
 
     -- convolution kernel for our problem - rule is: middle bit must be set,
     -- and 4 or fewer of the surrouding bits set, for output high
@@ -58,8 +58,8 @@ begin
                 bus_reg_dd <= (others => '0');
                 reg_dv_pipe <= (others => '0');
             else
-                if Bus_dv_in = '1' then
-                    bus_reg    <= Bus_in;
+                if Dv_in = '1' then
+                    bus_reg    <= Data_in;
                     bus_reg_d  <= bus_reg;
                     bus_reg_dd <= bus_reg_d;
                     reg_dv_pipe <= reg_dv_pipe(1 downto 0) & '1';
@@ -76,7 +76,7 @@ begin
     end process;
 
 
-    apply_kernel_gen : for i in 0 to BUS_IN_WIDTH-3 generate
+    apply_kernel_gen : for i in 0 to DATA_IN_WIDTH-3 generate
         -- pipeline viewed as inputs to the convolution kernel, this is really just renaming wires
         conv_kernel_inputs(i) <= (
             0 => bus_reg(i+2 downto i),
@@ -89,7 +89,7 @@ begin
     end generate;
 
     -- could pipeline here, currently just combinatorial
-    Bus_out <= conv_kernel_outputs;
-    Bus_dly_out <= bus_reg_d;
-    Bus_dv_out <= output_dv_int;
+    Dv_out   <= output_dv_int;
+    Data_out <= bus_reg_d;
+    Conv_out <= conv_kernel_outputs;
 end architecture;

@@ -3,7 +3,7 @@
 -- To run this testbench, with a terminal in day4 directory, run:
 --   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd test_conv_count_update_step.vhd
 --   ghdl -e test_conv_count_update_step
---   ghdl -r test_conv_count_update_step --wave=wave.ghw   
+--   ghdl -r test_conv_count_update_step --wave=test_conv_count_update_step_result.ghw
 --
 library ieee;
 use ieee.std_logic_1164.all;
@@ -41,53 +41,19 @@ begin
     -- testing a single instance, this produces similar waveforms to test_bit_convolution_2d
     dut : entity work.conv_count_update_step
     generic map (
-        BUS_IN_WIDTH => BUS_WIDTH
+        DATA_IN_WIDTH => BUS_WIDTH,
+        COUNT_WIDTH   => 16
     )
     port map (
-        Clk_in     => clk,
-        Srst_n_in  => srst_n,
-        Bus_dv_in  => bus_dv_in,
-        Bus_in     => bus_in,
-        Bus_dv_out => bus_dv_out,
-        Bus_out    => bus_out,
-        Count_in   => (others => '0'),
-        Count_out  => count_out
+        Clk_in    => clk,
+        Srst_n_in => srst_n,
+        Dv_in     => bus_dv_in,
+        Data_in   => bus_in,
+        Count_in  => (others => '0'),
+        Dv_out    => bus_dv_out,
+        Data_out  => bus_out,
+        Count_out => count_out
     );
-
-    -- pipeline test: 10 stages deep to replicate part2 example
-    -- each stage of pipeline increases bus width by 2, due to
-    -- padding either side
-    pipeline_stage_0 : entity work.conv_count_update_step
-    generic map (
-        BUS_IN_WIDTH => BUS_WIDTH + 20
-    )
-    port map (
-        Clk_in     => clk,
-        Srst_n_in  => srst_n,
-        Bus_dv_in  => bus_dv_in,
-        Bus_in     => bus_in,
-        Bus_dv_out => bus_dv_out,
-        Bus_out    => bus_out,
-        Count_in   => (others => '0'),
-        Count_out  => count_out
-    );
-
-    pipeline_gen : for i in 1 to 9 generate
-        pipeline_stage_i : entity work.conv_count_update_step
-        generic map (
-            BUS_IN_WIDTH => BUS_WIDTH + 18
-        )
-        port map (
-            Clk_in     => clk,
-            Srst_n_in  => srst_n,
-            Bus_dv_in  => bus_dv_in,
-            Bus_in()     => bus_in,   -- bus_in already has 2 bits padding
-            Bus_dv_out => bus_dv_out,
-            Bus_out    => bus_out,
-            Count_in   => 
-            Count_out  => count_out
-        );
-    end generate;
 
     read_file_proc : process
         file F_in : text open read_mode is "day4_input_example.txt";

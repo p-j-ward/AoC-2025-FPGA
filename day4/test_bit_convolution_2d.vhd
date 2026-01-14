@@ -4,7 +4,7 @@
 -- To run this testbench, with a terminal in day4 directory, run:
 --   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd test_bit_convolution_2d.vhd
 --   ghdl -e test_bit_convolution_2d 
---   ghdl -r test_bit_convolution_2d --wave=wave.ghw   
+--   ghdl -r test_bit_convolution_2d --wave=test_bit_convolution_2d_result.ghw   
 --
 library ieee;
 use ieee.std_logic_1164.all;
@@ -20,7 +20,6 @@ end entity;
 architecture testbench of test_bit_convolution_2d is
     constant T_WAIT : time := 1 ns;
     constant DATA_WIDTH : natural := 10;
-    constant BUS_WIDTH  : natural := DATA_WIDTH+2;  -- note padding on either side
 
     -- parsed data from input file
     constant NUM_INPUT_LINES : natural := 10;
@@ -30,8 +29,8 @@ architecture testbench of test_bit_convolution_2d is
     -- signals for dut
     signal clk, srst_n, bus_dv_in : std_logic := '0';
     signal bus_dv_out : std_logic;
-    signal bus_in  : std_logic_vector(BUS_WIDTH-1 downto 0) := (others => '0');
-    signal bus_out : std_logic_vector(BUS_WIDTH-3 downto 0);
+    signal data_in, data_out : std_logic_vector(DATA_WIDTH+1 downto 0) := (others => '0');
+    signal conv_out : std_logic_vector(DATA_WIDTH-1 downto 0);
 
     -- for part 1 solution, count up bits while running
     signal acc : natural := 0;
@@ -39,15 +38,16 @@ architecture testbench of test_bit_convolution_2d is
 begin
     dut : entity work.bit_convolution_2d
     generic map (
-        BUS_IN_WIDTH => BUS_WIDTH
+        DATA_IN_WIDTH => DATA_WIDTH+2
     )
     port map (
         Clk_in     => clk,
         Srst_n_in  => srst_n,
-        Bus_dv_in  => bus_dv_in,
-        Bus_dv_out => bus_dv_out,
-        Bus_in     => bus_in,
-        Bus_out    => bus_out
+        Dv_in      => bus_dv_in,
+        Data_in    => data_in,
+        Dv_out     => bus_dv_out,
+        Conv_out   => conv_out,
+        Data_out   => data_out
     );
 
     read_file_proc : process
@@ -87,7 +87,7 @@ begin
         for i in input_data'range loop
             clk <= '1';
             wait for 0 ns;
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            data_in <= '0' & input_data(i) & '0'; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -96,7 +96,7 @@ begin
         -- final cycle of padding
         clk <= '1';
         wait for 0 ns;
-        bus_in <= (others => '0');
+        data_in <= (others => '0');
         wait for T_WAIT;
         clk <= '0';
         wait for T_WAIT;
@@ -154,7 +154,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            data_in <= '0' & input_data(i) & '0'; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -173,7 +173,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            data_in <= '0' & input_data(i) & '0'; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -198,7 +198,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            data_in <= '0' & input_data(i) & '0'; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -217,7 +217,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            data_in <= '0' & input_data(i) & '0'; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -247,7 +247,7 @@ begin
         clk <= '1';
         wait for 0 ns;
         bus_dv_in <= '1';
-        bus_in <= (others => '0');
+        data_in <= (others => '0');
         wait for T_WAIT;
         clk <= '0';
         wait for T_WAIT;
@@ -281,7 +281,7 @@ begin
     begin
         if rising_edge(clk) then
             if bus_dv_out = '1' then
-                acc <= acc + count_bits(bus_out);
+                acc <= acc + count_bits(conv_out);
             end if;
             if reset_acc = '1' then
                 acc <= 0;
