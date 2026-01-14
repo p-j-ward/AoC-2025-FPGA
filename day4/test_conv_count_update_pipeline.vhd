@@ -1,27 +1,26 @@
--- Testbench for bit_convolution_2d
--- Uses AoC example input .......
+-- Testbench for conv_count_update_step
 --
 -- To run this testbench, with a terminal in day4 directory, run:
---   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd test_bit_convolution_2d.vhd
---   ghdl -e test_bit_convolution_2d 
---   ghdl -r test_bit_convolution_2d --wave=wave.ghw   
+--   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd test_conv_count_update_pipeline.vhd
+--   ghdl -e test_conv_count_update_pipeline
+--   ghdl -r test_conv_count_update_pipeline --wave=wave.ghw   
 --
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library std;
 use std.textio.all;
 
 use work.aoc25_day4_pkg.all;
 
-entity test_bit_convolution_2d is
+entity test_conv_count_update_pipeline is
 end entity;
 
-architecture testbench of test_bit_convolution_2d is
+architecture testbench of test_conv_count_update_pipeline is
     constant T_WAIT : time := 1 ns;
     constant DATA_WIDTH : natural := 10;
-    constant BUS_WIDTH  : natural := DATA_WIDTH+2;  -- note padding on either side
-
+    
     -- parsed data from input file
     constant NUM_INPUT_LINES : natural := 10;
     type input_data_t is array (0 to NUM_INPUT_LINES-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -30,24 +29,29 @@ architecture testbench of test_bit_convolution_2d is
     -- signals for dut
     signal clk, srst_n, bus_dv_in : std_logic := '0';
     signal bus_dv_out : std_logic;
-    signal bus_in  : std_logic_vector(BUS_WIDTH-1 downto 0) := (others => '0');
-    signal bus_out : std_logic_vector(BUS_WIDTH-3 downto 0);
+    signal bus_in  : std_logic_vector(DATA_WIDTH+19 downto 0) := (others => '0');
+    signal bus_out : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal count_out : unsigned(15 downto 0);
 
     -- for part 1 solution, count up bits while running
     signal acc : natural := 0;
     signal reset_acc : std_logic := '0';
 begin
-    dut : entity work.bit_convolution_2d
+    dut : entity work.conv_count_update_pipeline
     generic map (
-        BUS_IN_WIDTH => BUS_WIDTH
+        PIPELINE_DEPTH => 10,
+        BUS_OUT_WIDTH => DATA_WIDTH,
+        COUNT_WIDTH => 16
     )
     port map (
         Clk_in     => clk,
         Srst_n_in  => srst_n,
         Bus_dv_in  => bus_dv_in,
-        Bus_dv_out => bus_dv_out,
         Bus_in     => bus_in,
-        Bus_out    => bus_out
+        Bus_dv_out => bus_dv_out,
+        Bus_out    => bus_out,
+        Count_in   => (others => '0'),
+        Count_out  => count_out
     );
 
     read_file_proc : process
@@ -63,6 +67,7 @@ begin
         wait;
     end process;
 
+    -- test stimulus, as per test_bit_convolution_2d
     stimulus_proc : process
     begin
         --
@@ -87,7 +92,7 @@ begin
         for i in input_data'range loop
             clk <= '1';
             wait for 0 ns;
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -104,17 +109,20 @@ begin
         -- done
         clk <= '1';
         wait for 0 ns;
-        srst_n <= '0'; bus_dv_in <= '0';
+        bus_dv_in <= '0';
         wait for T_WAIT;
-        clk <= '0';
-        wait for T_WAIT;
+
+        -- keep srst_n asserted for a while longer
+        for i in 0 to 199 loop
+            clk <= '0';
+            wait for T_WAIT;
+            clk <= '1';
+            wait for T_WAIT;
+        end loop;
+
         clk <= '1';
-        wait for T_WAIT;
-        clk <= '0';
-        wait for T_WAIT;
-        clk <= '1';
-        wait for T_WAIT;
-        clk <= '0';
+        wait for 0 ns;
+        srst_n <= '0';
         wait for T_WAIT;
         clk <= '1';
         reset_acc <= '1';
@@ -154,7 +162,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -173,7 +181,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -198,7 +206,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -217,7 +225,7 @@ begin
             clk <= '1';
             wait for 0 ns;
             bus_dv_in <= '1';
-            bus_in <= '0' & input_data(i) & '0'; -- note padding either side
+            bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
             wait for T_WAIT;
             clk <= '0';
             wait for T_WAIT;
@@ -274,19 +282,6 @@ begin
         reset_acc <= '0';
 
         wait;
-    end process;
-
-    -- accumulate number of set bits, to give part 1 solution
-    part1_acc_proc : process(clk)
-    begin
-        if rising_edge(clk) then
-            if bus_dv_out = '1' then
-                acc <= acc + count_bits(bus_out);
-            end if;
-            if reset_acc = '1' then
-                acc <= 0;
-            end if;
-        end if;
     end process;
 
 end architecture;

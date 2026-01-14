@@ -1,23 +1,23 @@
--- Testbench for bit_convolution_2d
--- Uses AoC example input .......
+-- Testbench for conv_count_update_step
 --
 -- To run this testbench, with a terminal in day4 directory, run:
---   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd test_bit_convolution_2d.vhd
---   ghdl -e test_bit_convolution_2d 
---   ghdl -r test_bit_convolution_2d --wave=wave.ghw   
+--   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd test_conv_count_update_step.vhd
+--   ghdl -e test_conv_count_update_step
+--   ghdl -r test_conv_count_update_step --wave=wave.ghw   
 --
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 library std;
 use std.textio.all;
 
 use work.aoc25_day4_pkg.all;
 
-entity test_bit_convolution_2d is
+entity test_conv_count_update_step is
 end entity;
 
-architecture testbench of test_bit_convolution_2d is
+architecture testbench of test_conv_count_update_step is
     constant T_WAIT : time := 1 ns;
     constant DATA_WIDTH : natural := 10;
     constant BUS_WIDTH  : natural := DATA_WIDTH+2;  -- note padding on either side
@@ -32,12 +32,14 @@ architecture testbench of test_bit_convolution_2d is
     signal bus_dv_out : std_logic;
     signal bus_in  : std_logic_vector(BUS_WIDTH-1 downto 0) := (others => '0');
     signal bus_out : std_logic_vector(BUS_WIDTH-3 downto 0);
+    signal count_out : unsigned(15 downto 0);
 
     -- for part 1 solution, count up bits while running
     signal acc : natural := 0;
     signal reset_acc : std_logic := '0';
 begin
-    dut : entity work.bit_convolution_2d
+    -- testing a single instance, this produces similar waveforms to test_bit_convolution_2d
+    dut : entity work.conv_count_update_step
     generic map (
         BUS_IN_WIDTH => BUS_WIDTH
     )
@@ -45,10 +47,47 @@ begin
         Clk_in     => clk,
         Srst_n_in  => srst_n,
         Bus_dv_in  => bus_dv_in,
-        Bus_dv_out => bus_dv_out,
         Bus_in     => bus_in,
-        Bus_out    => bus_out
+        Bus_dv_out => bus_dv_out,
+        Bus_out    => bus_out,
+        Count_in   => (others => '0'),
+        Count_out  => count_out
     );
+
+    -- pipeline test: 10 stages deep to replicate part2 example
+    -- each stage of pipeline increases bus width by 2, due to
+    -- padding either side
+    pipeline_stage_0 : entity work.conv_count_update_step
+    generic map (
+        BUS_IN_WIDTH => BUS_WIDTH + 20
+    )
+    port map (
+        Clk_in     => clk,
+        Srst_n_in  => srst_n,
+        Bus_dv_in  => bus_dv_in,
+        Bus_in     => bus_in,
+        Bus_dv_out => bus_dv_out,
+        Bus_out    => bus_out,
+        Count_in   => (others => '0'),
+        Count_out  => count_out
+    );
+
+    pipeline_gen : for i in 1 to 9 generate
+        pipeline_stage_i : entity work.conv_count_update_step
+        generic map (
+            BUS_IN_WIDTH => BUS_WIDTH + 18
+        )
+        port map (
+            Clk_in     => clk,
+            Srst_n_in  => srst_n,
+            Bus_dv_in  => bus_dv_in,
+            Bus_in()     => bus_in,   -- bus_in already has 2 bits padding
+            Bus_dv_out => bus_dv_out,
+            Bus_out    => bus_out,
+            Count_in   => 
+            Count_out  => count_out
+        );
+    end generate;
 
     read_file_proc : process
         file F_in : text open read_mode is "day4_input_example.txt";
@@ -63,6 +102,7 @@ begin
         wait;
     end process;
 
+    -- test stimulus, as per test_bit_convolution_2d
     stimulus_proc : process
     begin
         --
@@ -274,19 +314,6 @@ begin
         reset_acc <= '0';
 
         wait;
-    end process;
-
-    -- accumulate number of set bits, to give part 1 solution
-    part1_acc_proc : process(clk)
-    begin
-        if rising_edge(clk) then
-            if bus_dv_out = '1' then
-                acc <= acc + count_bits(bus_out);
-            end if;
-            if reset_acc = '1' then
-                acc <= 0;
-            end if;
-        end if;
     end process;
 
 end architecture;
