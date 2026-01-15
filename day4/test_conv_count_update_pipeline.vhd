@@ -28,7 +28,7 @@ architecture testbench of test_conv_count_update_pipeline is
 
     -- signals for dut
     signal clk, srst_n, bus_dv_in : std_logic := '0';
-    signal bus_dv_out : std_logic;
+    signal bus_dv_out, count_dv_out : std_logic;
     signal bus_in  : std_logic_vector(DATA_WIDTH+19 downto 0) := (others => '0');
     signal bus_out : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal count_out : unsigned(15 downto 0);
@@ -49,11 +49,11 @@ begin
 
         Dv_in     => bus_dv_in,
         Data_in   => bus_in,
-        Count_in  => (others => '0'),
 
-        Dv_out    => bus_dv_out,
-        Data_out  => bus_out,
-        Count_out => count_out
+        Data_dv_out  => bus_dv_out,
+        Data_out     => bus_out,
+        Count_dv_out => count_dv_out,
+        Count_out    => count_out
     );
 
     read_file_proc : process
@@ -129,7 +129,9 @@ begin
         clk <= '0';
         wait for T_WAIT;
 
-        -- bodge fix: add 9 more lines of padding... nope, combined with parallel dv, 20 total post lines is correct
+        -- the pipeline itself deals with propagating prepadding, but not post
+        -- padding (for each stage), thus we need to add 10 cycles of post padding,
+        -- one for each pipeline stage
         for i in 1 to 10 loop
             clk <= '1';
             wait for T_WAIT;
@@ -144,7 +146,7 @@ begin
         wait for T_WAIT;
 
         -- keep srst_n asserted for a while longer
-        for i in 0 to 199 loop
+        for i in 0 to 40 loop
             clk <= '0';
             wait for T_WAIT;
             clk <= '1';
@@ -160,157 +162,6 @@ begin
         wait for T_WAIT;
         clk <= '0';
         reset_acc <= '0';
-
-        -- --
-        -- -- second test: non-contiguous data
-        -- --
-        -- clk <= '0';
-        -- srst_n <= '0'; bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- first cycle, first line padding
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- srst_n <= '1'; bus_dv_in <= '1';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- stall a cycle
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- add 2 cycles of input
-        -- for i in 0 to 1 loop
-        --     clk <= '1';
-        --     wait for 0 ns;
-        --     bus_dv_in <= '1';
-        --     bus_in <= b"00000000000" & input_data(i) & b"00000000000"; -- note padding either side
-        --     wait for T_WAIT;
-        --     clk <= '0';
-        --     wait for T_WAIT;
-        -- end loop;
-
-        -- -- stall a cycle
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- add 4 cycles of input
-        -- for i in 2 to 5 loop
-        --     clk <= '1';
-        --     wait for 0 ns;
-        --     bus_dv_in <= '1';
-        --     bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
-        --     wait for T_WAIT;
-        --     clk <= '0';
-        --     wait for T_WAIT;
-        -- end loop;
-
-        -- -- stall 2 cycles
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- add 3 cycles of input
-        -- for i in 6 to 8 loop
-        --     clk <= '1';
-        --     wait for 0 ns;
-        --     bus_dv_in <= '1';
-        --     bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
-        --     wait for T_WAIT;
-        --     clk <= '0';
-        --     wait for T_WAIT;
-        -- end loop;
-
-        -- -- stall a cycle
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- add last cycle of input
-        -- for i in 9 to 9 loop
-        --     clk <= '1';
-        --     wait for 0 ns;
-        --     bus_dv_in <= '1';
-        --     bus_in <= b"0000000000" & input_data(i) & b"0000000000"; -- note padding either side
-        --     wait for T_WAIT;
-        --     clk <= '0';
-        --     wait for T_WAIT;
-        -- end loop;
-
-        -- -- stall 3 cycles
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- final cycle of padding
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- bus_dv_in <= '1';
-        -- bus_in <= (others => '0');
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-
-        -- -- done
-        -- clk <= '1';
-        -- wait for 0 ns;
-        -- srst_n <= '0'; bus_dv_in <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- wait for T_WAIT;
-        -- clk <= '1';
-        -- reset_acc <= '1';
-        -- wait for T_WAIT;
-        -- clk <= '0';
-        -- reset_acc <= '0';
 
         wait;
     end process;

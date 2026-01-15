@@ -11,16 +11,17 @@ entity conv_count_update_pipeline is
         COUNT_WIDTH    : natural
     );
     port (
-        Clk_in    : in  std_logic;
-        Srst_n_in : in  std_logic;
+        Clk_in       : in  std_logic;
+        Srst_n_in    : in  std_logic;
 
-        Dv_in     : in  std_logic;
-        Count_in  : in  unsigned(COUNT_WIDTH-1 downto 0);
-        Data_in   : in  std_logic_vector(DATA_IN_WIDTH-1 downto 0);
+        Dv_in        : in  std_logic;
+        Data_in      : in  std_logic_vector(DATA_IN_WIDTH-1 downto 0);
 
-        Dv_out    : out std_logic;
-        Data_out  : out std_logic_vector(DATA_IN_WIDTH-2*PIPELINE_DEPTH-1 downto 0);
-        Count_out : out unsigned(COUNT_WIDTH-1 downto 0)
+        Data_dv_out  : out std_logic;
+        Data_out     : out std_logic_vector(DATA_IN_WIDTH-2*PIPELINE_DEPTH-1 downto 0);
+
+        Count_dv_out : out std_logic;
+        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0)
     );
 end entity;
 
@@ -31,7 +32,7 @@ architecture rtl of conv_count_update_pipeline is
     signal data   : data_arr_t := (others => (others => '0'));
     type count_arr_t is array (0 to PIPELINE_DEPTH-1) of unsigned(COUNT_WIDTH-1 downto 0);
     signal count : count_arr_t := (others => (others => '0'));
-    signal bus_dv : std_logic_vector(PIPELINE_DEPTH-1 downto 0) := (others => '0');
+    signal data_dv, count_dv : std_logic_vector(PIPELINE_DEPTH-1 downto 0) := (others => '0');
 begin
     pipeline_stage_0 : entity work.conv_count_update_step
     generic map (
@@ -39,17 +40,23 @@ begin
         COUNT_WIDTH   => COUNT_WIDTH
     )
     port map (
-        Clk_in    => Clk_in,
-        Srst_n_in => Srst_n_in,
+        Clk_in       => Clk_in,
+        Srst_n_in    => Srst_n_in,
 
-        Dv_in     => Dv_in,
-        Data_in   => Data_in,
-        Count_in  => Count_in,
+        Data_dv_in   => Dv_in,
+        Data_in      => Data_in,
+        Count_dv_in  => '0',
+        Count_in     => (others => '0'),
 
-        Dv_out    => bus_dv(0),
-        Data_out  => data(0),
-        Count_out => count(0)
+        Data_dv_out  => data_dv(0),
+        Data_out     => data(0),
+        Count_dv_out => open,
+        Count_out    => count(0)
     );
+    
+    -- for first stage, data and count begin simultaneously (although data dv
+    -- preceeds count by 1 cycle due to prepad)
+    count_dv(0) <= data_dv(0) when rising_edge(Clk_in);
 
     pipeline_gen : for i in 1 to PIPELINE_DEPTH-1 generate
         pipeline_stage_i : entity work.conv_count_update_step
@@ -58,21 +65,24 @@ begin
             COUNT_WIDTH   => COUNT_WIDTH
         )
         port map (
-            Clk_in    => Clk_in,
-            Srst_n_in => Srst_n_in,
+            Clk_in       => Clk_in,
+            Srst_n_in    => Srst_n_in,
 
-            Dv_in     => bus_dv(i-1), --Dv_in or bus_dv(i-1),
-            Data_in   => data(i-1)(DATA_IN_WIDTH-2*i-1 downto 0),
-            Count_in  => count(i-1),
+            Data_dv_in   => data_dv(i-1),
+            Data_in      => data(i-1)(DATA_IN_WIDTH-2*i-1 downto 0),
+            Count_dv_in  => count_dv(i-1),
+            Count_in     => count(i-1),
 
-            Dv_out    => bus_dv(i),
-            Data_out  => data(i)(DATA_IN_WIDTH-2*i-3 downto 0),
-            Count_out => count(i)
+            Data_dv_out  => data_dv(i),
+            Data_out     => data(i)(DATA_IN_WIDTH-2*i-3 downto 0),
+            Count_dv_out => count_dv(i),
+            Count_out    => count(i)
         );
     end generate;
 
+    Data_dv_out <= data_dv(PIPELINE_DEPTH-1);
     Data_out <= data(PIPELINE_DEPTH-1)(DATA_IN_WIDTH-2*PIPELINE_DEPTH-1 downto 0);
+    Count_dv_out <= count_dv(PIPELINE_DEPTH-1);
     Count_out <= count(PIPELINE_DEPTH-1);
-    Dv_out <= bus_dv(PIPELINE_DEPTH-1);
 
 end architecture;

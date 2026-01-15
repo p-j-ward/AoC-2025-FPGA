@@ -15,16 +15,18 @@ entity conv_count_update_step is
         COUNT_WIDTH   : natural
     );
     port (
-        Clk_in     : in  std_logic;
-        Srst_n_in  : in  std_logic;
+        Clk_in       : in  std_logic;
+        Srst_n_in    : in  std_logic;
 
-        Dv_in      : in  std_logic;
-        Data_in    : in  std_logic_vector(DATA_IN_WIDTH-1 downto 0);
-        Count_in   : in  unsigned(COUNT_WIDTH-1 downto 0);
+        Data_dv_in   : in  std_logic;
+        Data_in      : in  std_logic_vector(DATA_IN_WIDTH-1 downto 0);
+        Count_dv_in  : in  std_logic;
+        Count_in     : in  unsigned(COUNT_WIDTH-1 downto 0);
 
-        Dv_out     : out std_logic;
-        Data_out   : out std_logic_vector(DATA_IN_WIDTH-3 downto 0);
-        Count_out  : out unsigned(COUNT_WIDTH-1 downto 0)   -- ...as things stand at the minute, count propagates faster than data
+        Data_dv_out  : out std_logic;
+        Data_out     : out std_logic_vector(DATA_IN_WIDTH-3 downto 0);
+        Count_dv_out : out std_logic;
+        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0)   -- ...as things stand at the minute, count propagates faster than data
     );
 end entity;
 
@@ -43,7 +45,7 @@ begin
         Clk_in    => Clk_in,
         Srst_n_in => Srst_n_in,
 
-        Dv_in     => Dv_in,
+        Dv_in     => Data_dv_in,
         Data_in   => Data_in,
 
         Dv_out    => bus_dv_from_conv,
@@ -55,14 +57,17 @@ begin
     count_accumulate_update : process (Clk_in)
     begin
         if rising_edge(Clk_in) then
+            Count_dv_out <= Count_dv_in;
+
             if Srst_n_in = '0' then
                 Count_out <= (others => '0');
                 Data_out <= (others => '0');
-                Dv_out <= '0';
+                Data_dv_out <= '0';
+                Count_dv_out <= '0';
             else
-                Dv_out    <= bus_dv_from_conv;
-                Count_out <= Count_in + to_unsigned(count_bits(accessible_rolls), Count_out'length);
-                Data_out  <= delayed_data(DATA_IN_WIDTH-2 downto 1) and (not accessible_rolls);
+                Data_dv_out <= bus_dv_from_conv;
+                Count_out   <= Count_in + to_unsigned(count_bits(accessible_rolls), Count_out'length);
+                Data_out    <= delayed_data(DATA_IN_WIDTH-2 downto 1) and (not accessible_rolls);
             end if;
         end if;
     end process;
