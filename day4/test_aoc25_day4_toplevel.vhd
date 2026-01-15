@@ -1,0 +1,7 @@
+-- Top level testbench for aoc25_day4_toplevel
+--
+-- To run this testbench, with a terminal in day4 directory, run:
+--   ghdl -a --std=08 aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd simple_dual_port_ram.vhd aoc25_day4_toplevel.vhd
+--   ghdl -e --std=08 test_aoc25_day4_toplevel
+--   ghdl -r --std=08 test_aoc25_day4_toplevel --wave=test_aoc25_day4_toplevel.ghw
+--
