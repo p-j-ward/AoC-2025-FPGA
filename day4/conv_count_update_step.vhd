@@ -36,7 +36,8 @@ architecture rtl of conv_count_update_step is
 begin
     bit_convolution_2d_inst : entity work.bit_convolution_2d
     generic map (
-        DATA_IN_WIDTH => DATA_IN_WIDTH
+        DATA_IN_WIDTH => DATA_IN_WIDTH,
+        PRESERVE_PREPAD => true
     )
     port map (
         Clk_in    => Clk_in,

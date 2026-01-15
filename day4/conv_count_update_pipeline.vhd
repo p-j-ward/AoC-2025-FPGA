@@ -61,7 +61,7 @@ begin
             Clk_in    => Clk_in,
             Srst_n_in => Srst_n_in,
 
-            Dv_in     => Dv_in, --bus_dv(i-1), .... using global dv in is crazy but might just work
+            Dv_in     => bus_dv(i-1), --Dv_in or bus_dv(i-1),
             Data_in   => data(i-1)(DATA_IN_WIDTH-2*i-1 downto 0),
             Count_in  => count(i-1),
 

@@ -1,9 +1,9 @@
 -- Testbench for conv_count_update_step
 --
 -- To run this testbench, with a terminal in day4 directory, run:
---   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd test_conv_count_update_pipeline.vhd
---   ghdl -e test_conv_count_update_pipeline
---   ghdl -r test_conv_count_update_pipeline --wave=test_conv_count_update_pipeline_result.ghw
+--   ghdl -a --std=08 aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd test_conv_count_update_pipeline.vhd
+--   ghdl -e --std=08 test_conv_count_update_pipeline
+--   ghdl -r --std=08 test_conv_count_update_pipeline --wave=test_conv_count_update_pipeline_result.ghw
 --
 library ieee;
 use ieee.std_logic_1164.all;
@@ -130,7 +130,7 @@ begin
         wait for T_WAIT;
 
         -- bodge fix: add 9 more lines of padding... nope, combined with parallel dv, 20 total post lines is correct
-        for i in 1 to 19 loop
+        for i in 1 to 10 loop
             clk <= '1';
             wait for T_WAIT;
             clk <= '0';

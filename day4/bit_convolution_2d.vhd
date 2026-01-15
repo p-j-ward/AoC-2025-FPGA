@@ -9,7 +9,8 @@ use work.aoc25_day4_pkg.all;
 
 entity bit_convolution_2d is
     generic (
-        DATA_IN_WIDTH : natural
+        DATA_IN_WIDTH    : natural;
+        PRESERVE_PREPAD  : boolean := false
     );
     port (
         Clk_in    : in  std_logic;
@@ -68,6 +69,9 @@ begin
                     -- delayed by 1 cycle, hence checking only lower two
                     -- bits, to 'preempt' the first cycle that's full
                     if reg_dv_pipe(1 downto 0) = b"11" then
+                        output_dv_int <= '1';
+                    end if;
+                    if PRESERVE_PREPAD = true and reg_dv_pipe(0) = '1' then
                         output_dv_int <= '1';
                     end if;
                 end if;
