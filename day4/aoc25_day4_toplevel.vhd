@@ -26,7 +26,7 @@ end entity;
 
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
-    type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
+    type control_state_t is (IDLE, INIT_CACHES, PREPARE_FOR_PASS_1, PREPARE_FOR_PASS_2, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
     signal control_state : control_state_t := IDLE;
     signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
@@ -39,7 +39,7 @@ architecture rtl of aoc25_day4_toplevel is
     -- the right word to the oldest cache at the same time, as that data is
     -- no longer needed
     signal left_word_to_pipeline, centre_word_to_pipeline, right_word_to_pipeline : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
-    signal pipeline_dv_in    : std_logic := '0';
+    signal pipeline_dv_in : std_logic := '0';
     signal pipeline_data_out : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal pipeline_dv_out   : std_logic;
 
@@ -51,9 +51,9 @@ architecture rtl of aoc25_day4_toplevel is
 
     -- cache memory interfaces
     signal cache_a_wr_en,   cache_b_wr_en   : std_logic := '0';
-    signal cache_a_wr_addr, cache_b_wr_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
+    --signal cache_a_wr_addr, cache_b_wr_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_wr_data, cache_b_wr_data : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
-    signal cache_a_rd_addr, cache_b_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
+    --signal cache_a_rd_addr, cache_b_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_rd_data, cache_b_rd_data : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal write_to_cache_a_not_b : std_logic := '0';   -- when this is high, cache a is oldest, when low, cache b is oldest
 
@@ -87,10 +87,10 @@ begin
         Clk_in      => Clk_in,
 
         Wr_en_in    => cache_a_wr_en,
-        Wr_addr_in  => cache_a_wr_addr,
+        Wr_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)), --cache_a_wr_addr,
         Wr_data_in  => cache_a_wr_data,
 
-        Rd_addr_in  => cache_a_rd_addr,
+        Rd_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)), --cache_a_rd_addr,
         Rd_data_out => cache_a_rd_data
     );
 
@@ -103,12 +103,14 @@ begin
         Clk_in      => Clk_in,
 
         Wr_en_in    => cache_b_wr_en,
-        Wr_addr_in  => cache_b_wr_addr,
+        Wr_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)), --cache_b_wr_addr,
         Wr_data_in  => cache_b_wr_data,
 
-        Rd_addr_in  => cache_b_rd_addr,
+        Rd_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)), --cache_b_rd_addr,
         Rd_data_out => cache_b_rd_data
     );
+
+    Rd_addr_out <= std_logic_vector(to_unsigned(col_idx + to_integer(Num_cols_in)*line_idx, ADDR_WIDTH));
 
     -- We make passes going down the file, line by line, after each pass we can
     -- move one column across, the sequency for one pass down is as follows:
@@ -132,6 +134,7 @@ begin
                     col_idx  <= 0;
                     line_idx <= 0;
                     post_ctr <= 0;
+                    write_to_cache_a_not_b <= '1';
                     if Start_in = '1' then
                         control_state <= INIT_CACHES;
                     end if;
@@ -139,11 +142,17 @@ begin
                 when INIT_CACHES => -- writes zeros to cache a and mem(col 1) to cache b
                     line_idx <= line_idx + 1;
                     if line_idx = Num_lines_in then
-                        control_state <= START_PASS;
+                        control_state <= PREPARE_FOR_PASS_1;
                     end if;
 
-                when START_PASS =>  -- adds a line of zero padding at the start
+                when PREPARE_FOR_PASS_1 => -- addr needs to prempt start by 2 cycles, due to ram+mux delay
                     line_idx <= 0;
+                    control_state <= PREPARE_FOR_PASS_2;
+                when PREPARE_FOR_PASS_2 =>
+                    line_idx <= 1;
+                    control_state <= START_PASS;
+                when START_PASS =>  -- adds a line of zero padding at the start
+                    line_idx <= 2;
                     control_state <= PASS_IN_PROGRESS;
 
                 when PASS_IN_PROGRESS =>  -- main processing, feeding data into pipeline
@@ -197,11 +206,6 @@ begin
             end case;
         end if;
     end process;
-
-    -- see how this goes, timing wise ----- TODO
-    cache_a_wr_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
-    cache_b_wr_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
-    Rd_addr_out <= std_logic_vector(to_unsigned(col_idx + to_integer(Num_cols_in)*line_idx, ADDR_WIDTH));
 
     pipeline_input_mux_proc : process(Clk_in)
     begin
