@@ -28,7 +28,7 @@ architecture rtl of aoc25_day4_toplevel is
     -- control signals
     type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
     signal control_state : control_state_t := IDLE;
-    signal line_idx, col_idx : unsigned(COUNT_WIDTH-1 downto 0) := (others => '0'); -- line and column indicies, these are used for internal control, and adressing external ram
+    signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
 
     -- input to pipeline, we have three words: left, centre, and right; where
@@ -127,12 +127,10 @@ begin
     control_proc : process(Clk_in)
     begin
         if rising_edge(Clk_in) then
-            pipeline_dv_in <= '0';  -- may not be wanted in this proc
-
             case control_state is
                 when IDLE =>
-                    col_idx  <= (others => '0');
-                    line_idx <= (others => '0');
+                    col_idx  <= 0;
+                    line_idx <= 0;
                     post_ctr <= 0;
                     if Start_in = '1' then
                         control_state <= INIT_CACHES;
@@ -145,8 +143,7 @@ begin
                     end if;
 
                 when START_PASS =>  -- adds a line of zero padding at the start
-                    pipeline_dv_in <= '1';
-                    line_idx <= (others => '0');
+                    line_idx <= 0;
                     control_state <= PASS_IN_PROGRESS;
 
                 when PASS_IN_PROGRESS =>  -- main processing, feeding data into pipeline
@@ -201,20 +198,43 @@ begin
         end if;
     end process;
 
-    -- cache_ping_pong_proc : process (Clk_in)
-    -- begin
-    --     if rising_edge(Clk_in) then
-    --         if write_to_cache_a_not_b = '1' then
-    --             left_word_to_pipeline   <= cache_a_rd_data;
-    --             centre_word_to_pipeline <= cache_b_rd_data;
-    --         else
-    --             left_word_to_pipeline   <= cache_b_rd_data;
-    --             centre_word_to_pipeline <= cache_a_rd_data;
-    --         end if;
-    --         right_word_to_pipeline <= Rd_data_in;
-    --         ---- TODO: pipeline dv, figure out timing and such..... maybe not here though
-    --     end if;
-    -- end process;
+    -- see how this goes, timing wise ----- TODO
+    cache_a_wr_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
+    cache_b_wr_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
+    Rd_addr_out <= std_logic_vector(to_unsigned(col_idx + to_integer(Num_cols_in)*line_idx, ADDR_WIDTH));
+
+    pipeline_input_mux_proc : process(Clk_in)
+    begin
+        if rising_edge(Clk_in) then
+            case control_state is
+                when PASS_IN_PROGRESS =>
+                    if write_to_cache_a_not_b = '1' then
+                        -- writing to cache a means cache a is older, i.e. left
+                        left_word_to_pipeline   <= cache_a_rd_data;
+                        centre_word_to_pipeline <= cache_b_rd_data;
+                    else
+                        -- and vice versa
+                        left_word_to_pipeline   <= cache_b_rd_data;
+                        centre_word_to_pipeline <= cache_a_rd_data;
+                    end if;
+                    right_word_to_pipeline  <= Rd_data_in;
+                    pipeline_dv_in <= '1';
+
+                when START_PASS | POST_PAD =>
+                    left_word_to_pipeline   <= (others => '0');
+                    centre_word_to_pipeline <= (others => '0');
+                    right_word_to_pipeline  <= (others => '0');
+                    pipeline_dv_in <= '1';
+
+                when others =>
+                    left_word_to_pipeline   <= (others => '0');
+                    centre_word_to_pipeline <= (others => '0');
+                    right_word_to_pipeline  <= (others => '0');
+                    pipeline_dv_in <= '0';
+            end case;
+        end if;
+    end process;
+
 
 
 

@@ -3,7 +3,7 @@
 -- To run this testbench, with a terminal in day4 directory, run:
 --   ghdl -a --std=08 aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd simple_dual_port_ram.vhd aoc25_day4_toplevel.vhd test_aoc25_day4_toplevel.vhd
 --   ghdl -e --std=08 test_aoc25_day4_toplevel
---   ghdl -r --std=08 test_aoc25_day4_toplevel --wave=test_aoc25_day4_toplevel.ghw
+--   ghdl -r --std=08 test_aoc25_day4_toplevel --wave=test_aoc25_day4_toplevel_result.ghw
 --
 library ieee;
 use ieee.std_logic_1164.all;
@@ -51,6 +51,23 @@ begin
         Wr_en_out    => wr_en_out,
         Wr_addr_out  => wr_addr_out,
         Wr_data_out  => wr_data_out
+    );
+
+    data_mem : entity work.simple_dual_port_ram
+    generic map (
+        DATA_WIDTH => DATA_WIDTH,
+        ADDR_WIDTH => ADDR_WIDTH,
+        INIT_BIT   => '1'   -- preload all 1's for now
+    )
+    port map (
+        Clk_in      => clk,
+
+        Wr_en_in    => wr_en_out,
+        Wr_addr_in  => wr_addr_out,
+        Wr_data_in  => wr_data_out,
+
+        Rd_addr_in  => rd_addr_out,
+        Rd_data_out => rd_data_in
     );
 
     clock_proc : process
