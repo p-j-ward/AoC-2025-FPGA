@@ -26,11 +26,12 @@ end entity;
 
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
-    type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, DONE);
-    signal last_pass_flag : std_logic := '0';
+    type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, CHECK_ACC_THEN_ITERATE, DONE);
+    signal writeback_in_progress, last_pass_flag : std_logic := '0';
     signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
-    signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
+    signal line_idx, col_idx, previous_iteration_col_idx, writeback_ctr : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
+    
 
     -- input to pipeline, we have three words: left, centre, and right; where
     -- left is from the oldest cache, centre the newest cache, and right the
@@ -48,7 +49,7 @@ architecture rtl of aoc25_day4_toplevel is
     -- rolls, which we will accumulate while the pipeline is running
     signal pipeline_srst_n   : std_logic := '0';
     signal pipeline_count_dv : std_logic;
-    signal pipeline_count, count_acc : unsigned(COUNT_WIDTH-1 downto 0);
+    signal pipeline_count, count_acc, previous_iteration_acc : unsigned(COUNT_WIDTH-1 downto 0);
 
     -- need to mask the counts occuring inside the pipeline, to the centre data
     -- to prevent double counting of removed rolls
@@ -150,6 +151,8 @@ begin
                     line_idx <= 0;
                     post_ctr <= 0;
                     write_to_cache_a_not_b <= '0';
+                    previous_iteration_acc <= (others => '1');
+                    previous_iteration_col_idx <= 0;
                     last_pass_flag <= '0';
                     if Start_in = '1' then
                         control_state <= INIT_CACHES;
@@ -163,6 +166,7 @@ begin
 
                 when START_PASS =>  -- adds a line of zero padding at the start
                     pipeline_srst_n <= '1';
+                    previous_iteration_col_idx <= col_idx;
                     col_idx  <= col_idx + 1;
                     line_idx <= 0;
                     post_ctr <= 0;
@@ -192,13 +196,19 @@ begin
                         last_pass_flag <= '1';
                     end if;
                     if last_pass_flag = '1' then
-                        control_state <= DONE;
+                        control_state <= CHECK_ACC_THEN_ITERATE;
                     else
                         control_state <= START_PASS;
                     end if;
 
-                when DONE =>
-                    null;   ---------- TODO, figure this out
+                when CHECK_ACC_THEN_ITERATE =>
+                    if previous_iteration_acc = count_acc then
+                        control_state <= DONE;
+                    else
+                        control_state <= START_PASS;
+                    end if;
+                    previous_iteration_acc <= count_acc;
+                    
 
                 when others => null;
             end case;
@@ -282,6 +292,39 @@ begin
             end case;
         end if;
     end process;
+
+    -- write back pipeline output data to external memory, ready to be used in
+    -- the next iteration, if needed
+    pipeline_output_write_back_proc : process (Clk_in)
+    begin
+        if rising_edge(Clk_in) then
+            if pipeline_srst_n = '1' then
+                -- init writeback
+                if pipeline_dv_out_d = '0' and pipeline_dv_out = '1' then
+                    --writeback_ctr <= col_idx - 1;   -- note that pipeline output data is coherent with its centre input column, which was the previous col idx
+                    writeback_in_progress <= '1';
+                end if;
+                if writeback_in_progress = '1' then
+                    writeback_ctr <= writeback_ctr + 1;
+                else
+                    writeback_ctr <= 0;
+                end if;
+                -- writeback done after one column of words written
+                if writeback_ctr = Num_lines_in - 2 then
+                    writeback_in_progress <= '0';
+                end if;
+            else
+                writeback_in_progress <= '0';
+                writeback_ctr <= 0;
+            end if;
+
+            -- a bit of a hack needed to get correct wren timing
+            Wr_en_out <= writeback_in_progress or (not pipeline_dv_out_d and pipeline_dv_out);
+        end if;
+    end process;
+
+    Wr_addr_out <= std_logic_vector(to_unsigned(previous_iteration_col_idx + writeback_ctr * to_integer(Num_cols_in), Wr_addr_out'length));
+    Wr_data_out <= pipeline_data_out;
 
     count_acc_proc : process (Clk_in)
     begin
