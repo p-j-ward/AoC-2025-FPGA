@@ -27,7 +27,8 @@ end entity;
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
     type control_state_t is (IDLE, INIT_CACHES,
-                             PREEMPT_START_PASS_1, PREEMPT_START_PASS_2, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
+                             PREEMPT_START_PASS_1, PREEMPT_START_PASS_2,
+                             START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
     signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
     signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
@@ -147,25 +148,26 @@ begin
                 when INIT_CACHES => -- writes zeros to cache a and mem(col 1) to cache b
                     line_idx <= line_idx + 1;
                     if line_idx = Num_lines_in - 1 then
-                        control_state <= PREEMPT_START_PASS_1;
+                        control_state <= START_PASS;
                     end if;
 
-                when PREEMPT_START_PASS_1 => -- addr needs to prempt start by 2 cycles, due to ram+mux delay
-                    line_idx <= 0;
-                    col_idx  <= col_idx + 1;
-                    control_state <= PREEMPT_START_PASS_2;
+                -- when PREEMPT_START_PASS_1 =>
+                --     line_idx <= 0;
+                --     col_idx  <= col_idx + 1;
+                --     control_state <= PREEMPT_START_PASS_2;
 
-                when PREEMPT_START_PASS_2 =>
-                    line_idx <= 1;
-                    control_state <= START_PASS;
+                -- when PREEMPT_START_PASS_2 =>
+                --     line_idx <= 0;
+                --     control_state <= START_PASS;
 
                 when START_PASS =>  -- adds a line of zero padding at the start
-                    line_idx <= 2;
+                    line_idx <= 0;
+                    col_idx <= 1;
                     control_state <= PASS_IN_PROGRESS;
 
                 when PASS_IN_PROGRESS =>  -- main processing, feeding data into pipeline
                     line_idx <= line_idx + 1;
-                    if line_idx = Num_lines_in - 1 + 2 then -- extra 2 needed due to addr pre-emption
+                    if line_idx = Num_lines_in - 1 then
                         control_state <= POST_PAD;
                     end if;
 
@@ -231,7 +233,7 @@ begin
     pipeline_input_mux_proc : process(Clk_in)
     begin
         if rising_edge(Clk_in) then
-            case control_state is
+            case control_state_d is
                 when PASS_IN_PROGRESS =>
                     if write_to_cache_a_not_b = '1' then
                         -- writing to cache a means cache a is older, i.e. left
