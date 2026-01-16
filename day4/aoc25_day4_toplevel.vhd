@@ -42,13 +42,19 @@ architecture rtl of aoc25_day4_toplevel is
     signal left_word_to_pipeline, centre_word_to_pipeline, right_word_to_pipeline : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
     signal pipeline_dv_in : std_logic := '0';
     signal pipeline_data_out : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal pipeline_dv_out   : std_logic;
+    signal pipeline_dv_out, pipeline_dv_out_d : std_logic;
 
     -- other pipeline signals, note that count refers to the number of accessible
     -- rolls, which we will accumulate while the pipeline is running
     signal pipeline_srst_n   : std_logic := '0';
     signal pipeline_count_dv : std_logic;
-    signal pipeline_count    : unsigned(COUNT_WIDTH-1 downto 0);
+    signal pipeline_count, count_acc : unsigned(COUNT_WIDTH-1 downto 0);
+
+    -- need to mask the counts occuring inside the pipeline, to the centre data
+    -- to prevent double counting of removed rolls
+    constant WORD_OF_ZEROS : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
+    constant WORD_OF_ONES  : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '1');
+    constant MIDDLE_MASK : std_logic_vector(DATA_WIDTH*3-1 downto 0) := WORD_OF_ZEROS & WORD_OF_ONES & WORD_OF_ZEROS;
 
     -- cache memory interfaces
     signal cache_a_wr_en, cache_a_wr_en_d, cache_a_wr_en_dd : std_logic := '0';
@@ -66,7 +72,8 @@ begin
     generic map (
         PIPELINE_DEPTH => DATA_WIDTH,
         DATA_IN_WIDTH  => DATA_WIDTH*3,
-        COUNT_WIDTH    => COUNT_WIDTH
+        COUNT_WIDTH    => COUNT_WIDTH,
+        COUNT_MASK     => MIDDLE_MASK
     )
     port map (
         Clk_in       => Clk_in,
@@ -80,6 +87,8 @@ begin
         Count_dv_out => pipeline_count_dv,
         Count_out    => pipeline_count
     );
+
+    pipeline_dv_out_d <= pipeline_dv_out when rising_edge(Clk_in);
 
     cache_a_inst : entity work.simple_dual_port_ram
     generic map (
@@ -136,6 +145,7 @@ begin
         if rising_edge(Clk_in) then
             case control_state is
                 when IDLE =>
+                    pipeline_srst_n <= '0';
                     col_idx  <= 0;
                     line_idx <= 0;
                     post_ctr <= 0;
@@ -152,6 +162,7 @@ begin
                     end if;
 
                 when START_PASS =>  -- adds a line of zero padding at the start
+                    pipeline_srst_n <= '1';
                     col_idx  <= col_idx + 1;
                     line_idx <= 0;
                     post_ctr <= 0;
@@ -171,11 +182,12 @@ begin
                     end if;
 
                 when WAIT_FOR_PIPELINE_DONE =>
-                    if pipeline_dv_out = '0' then
+                    if pipeline_dv_out_d = '1' and pipeline_dv_out = '0' then
                         control_state <= INCREMENT_COL_IDX_AND_LOOP;
                     end if;
 
                 when INCREMENT_COL_IDX_AND_LOOP =>
+                    pipeline_srst_n <= '0';
                     if col_idx = Num_cols_in - 1 then
                         last_pass_flag <= '1';
                     end if;
@@ -185,9 +197,6 @@ begin
                         control_state <= START_PASS;
                     end if;
 
-                -- when ADD_POST_PADDING_COLUMM =>
-                    
-                    
                 when DONE =>
                     null;   ---------- TODO, figure this out
 
@@ -246,7 +255,6 @@ begin
                     centre_word_to_pipeline <= (others => '0');
                     right_word_to_pipeline  <= (others => '0');
                     pipeline_dv_in <= '1';
-                    pipeline_srst_n <= '1';
 
                 when PASS_IN_PROGRESS =>
                     if write_to_cache_a_not_b = '1' then
@@ -264,19 +272,29 @@ begin
                         right_word_to_pipeline <= (others => '0');
                     end if;
                     pipeline_dv_in <= '1';
-                    pipeline_srst_n <= '1';
 
                 when others =>
                     left_word_to_pipeline   <= (others => '0');
                     centre_word_to_pipeline <= (others => '0');
                     right_word_to_pipeline  <= (others => '0');
                     pipeline_dv_in <= '0';
-                    --pipeline_srst_n <= pipeline_dv_in; ... TODO: figure this out
+                    
             end case;
         end if;
     end process;
 
-
+    count_acc_proc : process (Clk_in)
+    begin
+        if rising_edge(Clk_in) then
+            if control_state = IDLE then
+                count_acc <= (others => '0');
+            else
+                if pipeline_count_dv = '1' then
+                    count_acc <= count_acc + pipeline_count;
+                end if;
+            end if;
+        end if;
+    end process;
 
 
 end architecture;

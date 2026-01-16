@@ -19,7 +19,7 @@ end entity;
 
 architecture testbench of test_aoc25_day4_toplevel is
     -- clock
-    constant NUM_SIM_CYCLES : natural := 100;
+    constant NUM_SIM_CYCLES : natural := 150;
     constant T_WAIT : time := 1 ns;
     signal clk : std_logic := '0';
 

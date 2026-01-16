@@ -12,7 +12,8 @@ use work.aoc25_day4_pkg.all;
 entity conv_count_update_step is
     generic (
         DATA_IN_WIDTH : natural;
-        COUNT_WIDTH   : natural
+        COUNT_WIDTH   : natural;
+        COUNT_MASK    : std_logic_vector(DATA_IN_WIDTH-3 downto 0) := (others => '1') -- in pipelines we may or may not want to exclude certain bits from the count
     );
     port (
         Clk_in       : in  std_logic;
@@ -66,7 +67,7 @@ begin
                 Count_dv_out <= '0';
             else
                 Data_dv_out <= bus_dv_from_conv;
-                Count_out   <= Count_in + to_unsigned(count_bits(accessible_rolls), Count_out'length);
+                Count_out   <= Count_in + to_unsigned(count_bits(accessible_rolls and COUNT_MASK), Count_out'length);
                 Data_out    <= delayed_data(DATA_IN_WIDTH-2 downto 1) and (not accessible_rolls);
             end if;
         end if;

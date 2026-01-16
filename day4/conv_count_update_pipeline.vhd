@@ -8,7 +8,8 @@ entity conv_count_update_pipeline is
     generic (
         PIPELINE_DEPTH : natural;
         DATA_IN_WIDTH  : natural;
-        COUNT_WIDTH    : natural
+        COUNT_WIDTH    : natural;
+        COUNT_MASK     : std_logic_vector(DATA_IN_WIDTH-1 downto 0) := (others => '1') -- in pipelines we may or may not want to exclude certain bits from the count
     );
     port (
         Clk_in       : in  std_logic;
@@ -37,7 +38,8 @@ begin
     pipeline_stage_0 : entity work.conv_count_update_step
     generic map (
         DATA_IN_WIDTH => DATA_IN_WIDTH,
-        COUNT_WIDTH   => COUNT_WIDTH
+        COUNT_WIDTH   => COUNT_WIDTH,
+        COUNT_MASK    => COUNT_MASK(DATA_IN_WIDTH-2 downto 1)   -- count mask in is input width, but each stage has data out width, hence the trim here
     )
     port map (
         Clk_in       => Clk_in,
@@ -62,7 +64,8 @@ begin
         pipeline_stage_i : entity work.conv_count_update_step
         generic map (
             DATA_IN_WIDTH => DATA_IN_WIDTH-2*i,
-            COUNT_WIDTH   => COUNT_WIDTH
+            COUNT_WIDTH   => COUNT_WIDTH,
+            COUNT_MASK    => COUNT_MASK(DATA_IN_WIDTH-2-i downto 1+i)
         )
         port map (
             Clk_in       => Clk_in,
