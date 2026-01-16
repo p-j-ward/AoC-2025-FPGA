@@ -26,9 +26,9 @@ end entity;
 
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
-    type control_state_t is (IDLE, PREEMPT_INIT_CACHES_1, PREEMPT_INIT_CACHES_2, INIT_CACHES,
+    type control_state_t is (IDLE, INIT_CACHES,
                              PREEMPT_START_PASS_1, PREEMPT_START_PASS_2, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
-    signal control_state : control_state_t := IDLE;
+    signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
     signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
 
@@ -54,7 +54,7 @@ architecture rtl of aoc25_day4_toplevel is
     signal cache_a_wr_en, cache_a_wr_en_d, cache_a_wr_en_dd : std_logic := '0';
     signal cache_b_wr_en, cache_b_wr_en_d, cache_b_wr_en_dd : std_logic := '0';
     signal cache_wr_addr_d, cache_wr_addr_dd : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
-
+    signal cache_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_wr_data, cache_b_wr_data : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
     --signal cache_a_rd_addr, cache_b_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_rd_data, cache_b_rd_data : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -89,11 +89,11 @@ begin
     port map (
         Clk_in      => Clk_in,
 
-        Wr_en_in    => cache_a_wr_en_dd,
+        Wr_en_in    => cache_a_wr_en, --_d,
         Wr_addr_in  => cache_wr_addr_dd,
         Wr_data_in  => cache_a_wr_data,
 
-        Rd_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)),
+        Rd_addr_in  => cache_rd_addr,
         Rd_data_out => cache_a_rd_data
     );
 
@@ -105,15 +105,16 @@ begin
     port map (
         Clk_in      => Clk_in,
 
-        Wr_en_in    => cache_b_wr_en_dd,
+        Wr_en_in    => cache_b_wr_en, --_d,
         Wr_addr_in  => cache_wr_addr_dd,
         Wr_data_in  => cache_b_wr_data,
 
-        Rd_addr_in  => std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH)), --cache_b_rd_addr,
+        Rd_addr_in  => cache_rd_addr,
         Rd_data_out => cache_b_rd_data
     );
-    
-    --cache_wr_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
+
+    -- cache and ext mem read addrs are coherent, thus data is also aligned in pipeline_input_mux_proc
+    cache_rd_addr <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
     Rd_addr_out <= std_logic_vector(to_unsigned(col_idx + to_integer(Num_cols_in)*line_idx, ADDR_WIDTH));
 
     -- We make passes going down the file, line by line, after each pass we can
@@ -140,16 +141,8 @@ begin
                     post_ctr <= 0;
                     write_to_cache_a_not_b <= '1';
                     if Start_in = '1' then
-                        control_state <= PREEMPT_INIT_CACHES_1;
+                        control_state <= INIT_CACHES;
                     end if;
-
-                when PREEMPT_INIT_CACHES_1 =>
-                    line_idx <= 0;
-                    control_state <= PREEMPT_INIT_CACHES_2;
-
-                when PREEMPT_INIT_CACHES_2 =>
-                    line_idx <= 1;
-                    control_state <= INIT_CACHES;
 
                 when INIT_CACHES => -- writes zeros to cache a and mem(col 1) to cache b
                     line_idx <= line_idx + 1;
@@ -186,17 +179,22 @@ begin
                     if pipeline_dv_out = '0' then
                         control_state <= IDLE;  -- for test only, let's see how this goes......
                     end if;
+
+                when others => null;
             end case;
+
+            control_state_d <= control_state;
+            control_state_dd <= control_state_d;
         end if;
     end process;
 
     cache_input_mux_proc : process(Clk_in)
     begin
         if rising_edge(Clk_in) then
-            case control_state is
+            case control_state_d is
                 when INIT_CACHES =>
                     cache_a_wr_data <= (others => '0');
-                    cache_b_wr_data <= Rd_data_in;  --- TODO figure out timing etc
+                    cache_b_wr_data <= Rd_data_in;
                     cache_a_wr_en <= '1';
                     cache_b_wr_en <= '1';
 
@@ -220,11 +218,11 @@ begin
                     cache_b_wr_en <= '0';
             end case;
 
-            -- account for 2 cycles of delay, for ram+mux
-            cache_a_wr_en_d  <= cache_a_wr_en;
-            cache_a_wr_en_dd <= cache_a_wr_en_d;
-            cache_b_wr_en_d  <= cache_b_wr_en;
-            cache_b_wr_en_dd <= cache_b_wr_en_d;
+            -- -- account for 2 cycles of delay, for ram+mux
+            -- cache_a_wr_en_d  <= cache_a_wr_en;
+            -- cache_a_wr_en_dd <= cache_a_wr_en_d;
+            -- cache_b_wr_en_d  <= cache_b_wr_en;
+            -- cache_b_wr_en_dd <= cache_b_wr_en_d;
             cache_wr_addr_d <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
             cache_wr_addr_dd <= cache_wr_addr_d;
         end if;
