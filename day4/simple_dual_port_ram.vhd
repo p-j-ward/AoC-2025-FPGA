@@ -5,8 +5,7 @@ use ieee.numeric_std.all;
 entity simple_dual_port_ram is
     generic (
         DATA_WIDTH : integer;
-        ADDR_WIDTH : integer;
-        INIT_BIT   : std_logic := '0'  -- set to 1 to preload with all 1's
+        ADDR_WIDTH : integer
     );
     port (
         Clk_in      : in  std_logic;
@@ -22,7 +21,9 @@ end entity;
 
 architecture rtl of simple_dual_port_ram is
     type ram_arr_t is array (0 to (2**ADDR_WIDTH)-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal ram : ram_arr_t := (others => (others => INIT_BIT));
+    --signal ram : ram_arr_t := (others => (others => '0'));
+    -- test only
+    signal ram : ram_arr_t := (0 => x"0", 1 => x"1", 2 => x"2", 3 => x"3", 4 => x"4", 5 => x"5", 6 => x"6", 7 => x"7", 8 => x"8", 9 => x"9", 10 => x"A", 11 => x"B", 12 => x"C", 13 => x"D", 14 => x"E", 15 => x"F", others => (others => '0'));
 begin
     ram_proc : process (Clk_in)
     begin

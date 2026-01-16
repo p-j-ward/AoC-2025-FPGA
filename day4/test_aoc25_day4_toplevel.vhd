@@ -42,8 +42,8 @@ begin
         Clk_in       => clk,
 
         Start_in     => start,
-        Num_lines_in => x"000A",
-        Num_cols_in  => x"000A",
+        Num_lines_in => x"0004",
+        Num_cols_in  => x"0004",
 
         -- External memory interface, to data starting at addr 0
         Rd_addr_out  => rd_addr_out,
@@ -56,8 +56,7 @@ begin
     data_mem : entity work.simple_dual_port_ram
     generic map (
         DATA_WIDTH => DATA_WIDTH,
-        ADDR_WIDTH => ADDR_WIDTH,
-        INIT_BIT   => '1'   -- preload all 1's for now
+        ADDR_WIDTH => ADDR_WIDTH
     )
     port map (
         Clk_in      => clk,
