@@ -26,10 +26,10 @@ end entity;
 
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
-    type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, CHECK_ACC_THEN_ITERATE, DONE);
+    type control_state_t is (IDLE, START_ITERATION, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, CHECK_ACC_THEN_ITERATE, DONE);
     signal writeback_in_progress, last_pass_flag : std_logic := '0';
     signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
-    signal line_idx, col_idx, previous_iteration_col_idx, writeback_ctr : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
+    signal line_idx, col_idx, previous_pass_col_idx, writeback_ctr : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
     
 
@@ -151,14 +151,23 @@ begin
                     line_idx <= 0;
                     post_ctr <= 0;
                     write_to_cache_a_not_b <= '0';
-                    previous_iteration_acc <= (others => '1');
-                    previous_iteration_col_idx <= 0;
+                    previous_pass_col_idx <= 0;
                     last_pass_flag <= '0';
                     if Start_in = '1' then
-                        control_state <= INIT_CACHES;
+                        control_state <= START_ITERATION;
                     end if;
+                    previous_iteration_acc <= (others => '1');
+
+                when START_ITERATION =>
+                    col_idx  <= 0;
+                    line_idx <= 0;
+                    post_ctr <= 0;
+                    write_to_cache_a_not_b <= '0';
+                    previous_pass_col_idx <= 0;
+                    control_state <= INIT_CACHES;
 
                 when INIT_CACHES => -- writes zeros to cache a and mem(col 1) to cache b
+                    pipeline_srst_n <= '0';
                     line_idx <= line_idx + 1;
                     if line_idx = Num_lines_in - 1 then
                         control_state <= START_PASS;
@@ -166,7 +175,7 @@ begin
 
                 when START_PASS =>  -- adds a line of zero padding at the start
                     pipeline_srst_n <= '1';
-                    previous_iteration_col_idx <= col_idx;
+                    previous_pass_col_idx <= col_idx;
                     col_idx  <= col_idx + 1;
                     line_idx <= 0;
                     post_ctr <= 0;
@@ -205,7 +214,7 @@ begin
                     if previous_iteration_acc = count_acc then
                         control_state <= DONE;
                     else
-                        control_state <= START_PASS;
+                        control_state <= START_ITERATION;
                     end if;
                     previous_iteration_acc <= count_acc;
                     
@@ -323,7 +332,7 @@ begin
         end if;
     end process;
 
-    Wr_addr_out <= std_logic_vector(to_unsigned(previous_iteration_col_idx + writeback_ctr * to_integer(Num_cols_in), Wr_addr_out'length));
+    Wr_addr_out <= std_logic_vector(to_unsigned(previous_pass_col_idx + writeback_ctr * to_integer(Num_cols_in), Wr_addr_out'length));
     Wr_data_out <= pipeline_data_out;
 
     count_acc_proc : process (Clk_in)
