@@ -19,7 +19,7 @@ end entity;
 
 architecture testbench of test_aoc25_day4_toplevel is
     -- clock
-    constant NUM_SIM_CYCLES : natural := 150;
+    constant NUM_SIM_CYCLES : natural := 500;
     constant T_WAIT : time := 1 ns;
     signal clk : std_logic := '0';
 
@@ -42,8 +42,8 @@ begin
         Clk_in       => clk,
 
         Start_in     => start,
-        Num_lines_in => x"0004",
-        Num_cols_in  => x"0004",
+        Num_lines_in => x"000A",
+        Num_cols_in  => x"0003",
 
         -- External memory interface, to data starting at addr 0
         Rd_addr_out  => rd_addr_out,
