@@ -26,9 +26,8 @@ end entity;
 
 architecture rtl of aoc25_day4_toplevel is
     -- control signals
-    type control_state_t is (IDLE, INIT_CACHES,
-                             PREEMPT_START_PASS_1, PREEMPT_START_PASS_2,
-                             START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE);
+    type control_state_t is (IDLE, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, DONE);
+    signal last_pass_flag : std_logic := '0';
     signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
     signal line_idx, col_idx : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
@@ -90,7 +89,7 @@ begin
     port map (
         Clk_in      => Clk_in,
 
-        Wr_en_in    => cache_a_wr_en, --_d,
+        Wr_en_in    => cache_a_wr_en,
         Wr_addr_in  => cache_wr_addr_dd,
         Wr_data_in  => cache_a_wr_data,
 
@@ -106,7 +105,7 @@ begin
     port map (
         Clk_in      => Clk_in,
 
-        Wr_en_in    => cache_b_wr_en, --_d,
+        Wr_en_in    => cache_b_wr_en,
         Wr_addr_in  => cache_wr_addr_dd,
         Wr_data_in  => cache_b_wr_data,
 
@@ -140,7 +139,8 @@ begin
                     col_idx  <= 0;
                     line_idx <= 0;
                     post_ctr <= 0;
-                    write_to_cache_a_not_b <= '1';
+                    write_to_cache_a_not_b <= '0';
+                    last_pass_flag <= '0';
                     if Start_in = '1' then
                         control_state <= INIT_CACHES;
                     end if;
@@ -151,18 +151,11 @@ begin
                         control_state <= START_PASS;
                     end if;
 
-                -- when PREEMPT_START_PASS_1 =>
-                --     line_idx <= 0;
-                --     col_idx  <= col_idx + 1;
-                --     control_state <= PREEMPT_START_PASS_2;
-
-                -- when PREEMPT_START_PASS_2 =>
-                --     line_idx <= 0;
-                --     control_state <= START_PASS;
-
                 when START_PASS =>  -- adds a line of zero padding at the start
+                    col_idx  <= col_idx + 1;
                     line_idx <= 0;
-                    col_idx <= 1;
+                    post_ctr <= 0;
+                    write_to_cache_a_not_b <= not write_to_cache_a_not_b;
                     control_state <= PASS_IN_PROGRESS;
 
                 when PASS_IN_PROGRESS =>  -- main processing, feeding data into pipeline
@@ -179,8 +172,24 @@ begin
 
                 when WAIT_FOR_PIPELINE_DONE =>
                     if pipeline_dv_out = '0' then
-                        control_state <= IDLE;  -- for test only, let's see how this goes......
+                        control_state <= INCREMENT_COL_IDX_AND_LOOP;
                     end if;
+
+                when INCREMENT_COL_IDX_AND_LOOP =>
+                    if col_idx = Num_cols_in - 1 then
+                        last_pass_flag <= '1';
+                    end if;
+                    if last_pass_flag = '1' then
+                        control_state <= DONE;
+                    else
+                        control_state <= START_PASS;
+                    end if;
+
+                -- when ADD_POST_PADDING_COLUMM =>
+                    
+                    
+                when DONE =>
+                    null;   ---------- TODO, figure this out
 
                 when others => null;
             end case;
@@ -220,11 +229,8 @@ begin
                     cache_b_wr_en <= '0';
             end case;
 
-            -- -- account for 2 cycles of delay, for ram+mux
-            -- cache_a_wr_en_d  <= cache_a_wr_en;
-            -- cache_a_wr_en_dd <= cache_a_wr_en_d;
-            -- cache_b_wr_en_d  <= cache_b_wr_en;
-            -- cache_b_wr_en_dd <= cache_b_wr_en_d;
+            -- data and wren delayed 2 cycles already (accounting for ram+mux latency),
+            -- so delay address too
             cache_wr_addr_d <= std_logic_vector(to_unsigned(line_idx, ADDR_WIDTH));
             cache_wr_addr_dd <= cache_wr_addr_d;
         end if;
@@ -234,6 +240,14 @@ begin
     begin
         if rising_edge(Clk_in) then
             case control_state_d is
+                -- padding line either side of each pass' data
+                when START_PASS | POST_PAD =>
+                    left_word_to_pipeline   <= (others => '0');
+                    centre_word_to_pipeline <= (others => '0');
+                    right_word_to_pipeline  <= (others => '0');
+                    pipeline_dv_in <= '1';
+                    pipeline_srst_n <= '1';
+
                 when PASS_IN_PROGRESS =>
                     if write_to_cache_a_not_b = '1' then
                         -- writing to cache a means cache a is older, i.e. left
@@ -244,20 +258,20 @@ begin
                         left_word_to_pipeline   <= cache_b_rd_data;
                         centre_word_to_pipeline <= cache_a_rd_data;
                     end if;
-                    right_word_to_pipeline  <= Rd_data_in;
+                    if last_pass_flag = '0' then
+                        right_word_to_pipeline <= Rd_data_in;
+                    else
+                        right_word_to_pipeline <= (others => '0');
+                    end if;
                     pipeline_dv_in <= '1';
-
-                when START_PASS | POST_PAD =>
-                    left_word_to_pipeline   <= (others => '0');
-                    centre_word_to_pipeline <= (others => '0');
-                    right_word_to_pipeline  <= (others => '0');
-                    pipeline_dv_in <= '1';
+                    pipeline_srst_n <= '1';
 
                 when others =>
                     left_word_to_pipeline   <= (others => '0');
                     centre_word_to_pipeline <= (others => '0');
                     right_word_to_pipeline  <= (others => '0');
                     pipeline_dv_in <= '0';
+                    --pipeline_srst_n <= pipeline_dv_in; ... TODO: figure this out
             end case;
         end if;
     end process;
