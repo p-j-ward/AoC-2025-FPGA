@@ -2,11 +2,10 @@
 # How to Run
 
 With a terminal in the day4 folder, run the run_testbenches.sh script. This produces the following gtkwave waveform files in the day4 folder:
-  test_bit_convolution_2d_result.ghw
-  test_conv_count_update_step_result.ghw
-  test_conv_count_update_pipeline_result.ghw
-  test_aoc25_day4_toplevel_result.ghw
-
+>test_bit_convolution_2d_result.ghw
+>test_conv_count_update_step_result.ghw
+>test_conv_count_update_pipeline_result.ghw
+>test_aoc25_day4_toplevel_result.ghw
 These files can also be be found in the repo folder, created with GHDL 4.1.0 running on macOS Ventura.
 
 
