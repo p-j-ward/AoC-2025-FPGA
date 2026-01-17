@@ -8,12 +8,17 @@ entity aoc25_day4_toplevel is
         ADDR_WIDTH  : natural;
         COUNT_WIDTH : natural
     );
-    port(
+    port (
         Clk_in       : in  std_logic;
 
+        Ready_out    : out std_logic;
         Start_in     : in  std_logic;
         Num_lines_in : in  unsigned(COUNT_WIDTH-1 downto 0);
         Num_cols_in  : in  unsigned(COUNT_WIDTH-1 downto 0);    -- number of words per line
+
+        -- The calculated answer is output here, with a done pulse
+        Done_out     : out std_logic;
+        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0);
 
         -- External memory interface, to data starting at addr 0
         Rd_addr_out  : out std_logic_vector(ADDR_WIDTH-1 downto 0);
@@ -144,6 +149,8 @@ begin
     control_proc : process(Clk_in)
     begin
         if rising_edge(Clk_in) then
+            Done_out <= '0';
+
             case control_state is
                 when IDLE =>
                     pipeline_srst_n <= '0';
@@ -218,15 +225,19 @@ begin
                         control_state <= START_ITERATION;
                     end if;
                     previous_iteration_acc <= count_acc;
-                    
 
-                when others => null;
+                when DONE =>
+                    Done_out <= '1';
+                    Count_out <= count_acc;
+                    control_state <= IDLE;
             end case;
 
             control_state_d <= control_state;
             control_state_dd <= control_state_d;
         end if;
     end process;
+
+    Ready_out <= '1' when control_state = IDLE else '0';
 
     cache_input_mux_proc : process(Clk_in)
     begin
