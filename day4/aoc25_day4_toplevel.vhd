@@ -159,15 +159,16 @@ begin
                     previous_iteration_acc <= (others => '1');
 
                 when START_ITERATION =>
+                    pipeline_srst_n <= '0';
                     col_idx  <= 0;
                     line_idx <= 0;
                     post_ctr <= 0;
                     write_to_cache_a_not_b <= '0';
                     previous_pass_col_idx <= 0;
+                    last_pass_flag <= '0';
                     control_state <= INIT_CACHES;
 
                 when INIT_CACHES => -- writes zeros to cache a and mem(col 1) to cache b
-                    pipeline_srst_n <= '0';
                     line_idx <= line_idx + 1;
                     if line_idx = Num_lines_in - 1 then
                         control_state <= START_PASS;
