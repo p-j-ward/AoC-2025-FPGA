@@ -18,7 +18,7 @@ entity aoc25_day4_toplevel is
 
         -- The calculated answer is output here, with a done pulse
         Done_out     : out std_logic;
-        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0);
+        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0) := (others => '0');
 
         -- External memory interface, to data starting at addr 0
         Rd_addr_out  : out std_logic_vector(ADDR_WIDTH-1 downto 0);
@@ -33,7 +33,7 @@ architecture rtl of aoc25_day4_toplevel is
     -- control signals
     type control_state_t is (IDLE, START_ITERATION, INIT_CACHES, START_PASS, PASS_IN_PROGRESS, POST_PAD, WAIT_FOR_PIPELINE_DONE, INCREMENT_COL_IDX_AND_LOOP, CHECK_ACC_THEN_ITERATE, DONE);
     signal writeback_in_progress, last_pass_flag : std_logic := '0';
-    signal control_state, control_state_d, control_state_dd : control_state_t := IDLE;
+    signal control_state, control_state_d : control_state_t := IDLE;
     signal line_idx, col_idx, previous_pass_col_idx, writeback_ctr : integer range 0 to 2*ADDR_WIDTH-1; -- line and column indicies, these are used for internal control, and adressing external ram
     signal post_ctr : integer range 0 to 2 + DATA_WIDTH := 0;
     
@@ -63,17 +63,15 @@ architecture rtl of aoc25_day4_toplevel is
     constant MIDDLE_MASK : std_logic_vector(DATA_WIDTH*3-1 downto 0) := WORD_OF_ZEROS & WORD_OF_ONES & WORD_OF_ZEROS;
 
     -- cache memory interfaces
-    signal cache_a_wr_en, cache_a_wr_en_d, cache_a_wr_en_dd : std_logic := '0';
-    signal cache_b_wr_en, cache_b_wr_en_d, cache_b_wr_en_dd : std_logic := '0';
+    signal cache_a_wr_en, cache_b_wr_en : std_logic := '0';
     signal cache_wr_addr_d, cache_wr_addr_dd : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_wr_data, cache_b_wr_data : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => '0');
-    --signal cache_a_rd_addr, cache_b_rd_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal cache_a_rd_data, cache_b_rd_data : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal write_to_cache_a_not_b : std_logic := '0';   -- when this is high, cache a is oldest, when low, cache b is oldest
 
-    
 begin
+
     pipeline_inst : entity work.conv_count_update_pipeline
     generic map (
         PIPELINE_DEPTH => DATA_WIDTH,
@@ -233,7 +231,6 @@ begin
             end case;
 
             control_state_d <= control_state;
-            control_state_dd <= control_state_d;
         end if;
     end process;
 

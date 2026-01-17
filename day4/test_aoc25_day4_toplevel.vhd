@@ -28,8 +28,8 @@ architecture testbench of test_aoc25_day4_toplevel is
     constant ADDR_WIDTH : natural := 8;
     signal rd_addr_out, wr_addr_out : std_logic_vector(ADDR_WIDTH-1 downto 0);
     signal rd_data_in,  wr_data_out : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal wr_en_out : std_logic;
-
+    signal ready, done, wr_en_out : std_logic;
+    signal count : unsigned(15 downto 0);
     signal start : std_logic := '0';
 begin
     dut : entity work.aoc25_day4_toplevel
@@ -41,9 +41,13 @@ begin
     port map (
         Clk_in       => clk,
 
+        Ready_out    => ready,
         Start_in     => start,
         Num_lines_in => x"000A",
         Num_cols_in  => x"0003",
+
+        Done_out     => done,
+        Count_out    => count,
 
         -- External memory interface, to data starting at addr 0
         Rd_addr_out  => rd_addr_out,
