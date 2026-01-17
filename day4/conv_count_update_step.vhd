@@ -27,7 +27,7 @@ entity conv_count_update_step is
         Data_dv_out  : out std_logic;
         Data_out     : out std_logic_vector(DATA_IN_WIDTH-3 downto 0);
         Count_dv_out : out std_logic;
-        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0)   -- ...as things stand at the minute, count propagates faster than data
+        Count_out    : out unsigned(COUNT_WIDTH-1 downto 0)   -- count propagates faster than data
     );
 end entity;
 

@@ -1,9 +1,9 @@
 -- Testbench for conv_count_update_step
 --
 -- To run this testbench, with a terminal in day4 directory, run:
---   ghdl -a aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd test_conv_count_update_step.vhd
---   ghdl -e test_conv_count_update_step
---   ghdl -r test_conv_count_update_step --wave=test_conv_count_update_step_result.ghw
+--   ghdl -a --std=08 aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd test_conv_count_update_step.vhd
+--   ghdl -e --std=08 test_conv_count_update_step
+--   ghdl -r --std=08 test_conv_count_update_step --wave=test_conv_count_update_step_result.ghw
 --
 library ieee;
 use ieee.std_logic_1164.all;
@@ -45,14 +45,16 @@ begin
         COUNT_WIDTH   => 16
     )
     port map (
-        Clk_in    => clk,
-        Srst_n_in => srst_n,
-        Dv_in     => bus_dv_in,
-        Data_in   => bus_in,
-        Count_in  => (others => '0'),
-        Dv_out    => bus_dv_out,
-        Data_out  => bus_out,
-        Count_out => count_out
+        Clk_in       => clk,
+        Srst_n_in    => srst_n,
+        Data_dv_in   => bus_dv_in,
+        Data_in      => bus_in,
+        Count_dv_in  => '0',
+        Count_in     => (others => '0'),
+        Data_dv_out  => bus_dv_out,
+        Data_out     => bus_out,
+        Count_dv_out => open,
+        Count_out    => count_out
     );
 
     read_file_proc : process

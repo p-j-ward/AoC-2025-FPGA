@@ -1,4 +1,4 @@
--- Testbench for conv_count_update_step
+-- Testbench for conv_count_update_pipeline
 --
 -- To run this testbench, with a terminal in day4 directory, run:
 --   ghdl -a --std=08 aoc25_day4_pkg.vhd bit_convolution_2d.vhd conv_count_update_step.vhd conv_count_update_pipeline.vhd test_conv_count_update_pipeline.vhd
