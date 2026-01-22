@@ -17,17 +17,19 @@ The solution I settled on was as follows: the depth of the pipeline is set to to
 -- move one column across, the sequence for one pass down is as follows:
 --   1. Initialse by zeroing cache a (right) and loading first column (hence
 --      column 1) of input data into cache b (centre).
---   2. First pass down: input to pipeline is \[cache a, cache b, memory]
+--   2. First pass down: input to pipeline is [cache a, cache b, memory]
 --      where memory is the external memory (data column 2 in this case).
 --      Simultaneously we load memory into cache a. The output of the
 --      pipeline for this step will be written back to memory column 1.
---   3. Second pass down: input to pipeline is \[cache b, cache a, memory],
+--   3. Second pass down: input to pipeline is [cache b, cache a, memory],
 --      recall cache b contains column 1, cache a contains column 2, and the
 --      pipeline output will be written back to column 2. Simultaneously we
 --      load memory into cache b.
 --   4. Repeat steps 2 and 3, moving one column across the input with each
 --      pass down, and ping-ponging the caches.
 ```
+
+The last of the logic is to handle running multiple iterations (what we mean by an iteration is passes across all columns of the input) and stopping when done. The current scheme is a bit crude as we check the acc after each iteration, and if it equals the acc of the previous iteration, then we stop.
 
 # How to Run
 
