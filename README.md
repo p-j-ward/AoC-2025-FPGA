@@ -12,6 +12,7 @@ Recall that the pipeline sweeps down the input, to generalise this to larger inp
 
 The solution I settled on was as follows: the depth of the pipeline is set to to the word length of the memory, which allows us to have a pipline with input width of three words and output width of a single word. I call the three words left, centre, and right. The left and centre words come from two local caches (which were updated on previous passes down), and the right word is read from the external memory. As well as feeding the pipeline, the right word is also written to the left cache. Physically, we have two caches A and B, whose role as left and right changes each cycle with muxes controlled by the write_to_cache_a_not_b flag. The logic is described by the following comment above the control_proc:
 
+```
 -- We make passes going down the file, line by line, after each pass we can
 -- move one column across, the sequence for one pass down is as follows:
 --   1. Initialse by zeroing cache a (right) and loading first column (hence
@@ -26,6 +27,7 @@ The solution I settled on was as follows: the depth of the pipeline is set to to
 --      load memory into cache b.
 --   4. Repeat steps 2 and 3, moving one column across the input with each
 --      pass down, and ping-ponging the caches.
+```
 
 # How to Run
 
